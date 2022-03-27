@@ -1,6 +1,8 @@
 from ctypes import *
 from ctypes import wintypes as w
 
+import flags
+
 user32 = WinDLL("user32", use_last_error=True)
 kernel32 = WinDLL("kernel32", use_last_error=True)
 gdi32 = WinDLL("gdi32", use_last_error=True)
@@ -95,64 +97,6 @@ IDI_APPLICATION = MAKEINTRESOURCEW(32512)
 IDC_ARROW = MAKEINTRESOURCEW(32512)
 
 
-class Flags:
-    class dwExStyles:
-        WS_EX_TOPMOST = 0x00000008
-        WS_EX_TOOLWINDOW = 0x00000080
-        WS_EX_STATICEDGE = 0x00020000
-        WS_EX_RTLREADING = 0x00002000
-        WS_EX_LEFT = 0x00000000
-        WS_EX_RIGHT = 0x00001000
-        WS_EX_WINDOWEDGE = 0x00000100
-        WS_EX_CLIENTEDGE = 0x00000200
-        WS_EX_ACCEPTFILES = 0x00000010
-        WS_EX_OVERLAPPEDWINDOW = WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE
-
-    class dwStyles:
-        WS_BORDER = 0x00800000
-        WS_CAPTION = 0x00C00000
-        WS_CHILD = 0x40000000
-        WS_DISABLED = 0x08000000
-        WS_MAXIMIZE = 0x01000000
-        WS_MAXIMIZEBOX = 0x00010000
-        WS_MINIMIZE = 0x20000000
-        WS_MINIMIZEBOX = 0x00020000
-        WS_OVERLAPPED = 0x00000000
-        WS_SYSMENU = 0x00080000
-        WS_THICKFRAME = 0x00040000
-        WS_OVERLAPPEDWINDOW = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX
-        WS_POPUP = 0x80000000
-        WS_POPUPWINDOW = WS_POPUP | WS_BORDER | WS_SYSMENU
-        WS_VISIBLE = 0x10000000
-
-    class showModes:
-        SW_HIDE = 0
-        SW_SHOWNORMAL = 1
-        SW_NORMAL = 1
-        SW_SHOWMINIMIZED = 2
-        SW_SHOWMAXIMIZED = 3
-        SW_MAXIMIZE = 3
-        SW_SHOWNOACTIVATE = 4
-        SW_SHOW = 5
-        SW_MINIMIZE = 6
-        SW_SHOWMINNOACTIVE = 7
-        SW_SHOWNA = 8
-        SW_RESTORE = 9
-        SW_SHOWDEFAULT = 10
-        SW_FORCEMINIMIZE = 11
-
-    class windowMessages:
-        WM_DESTROY = 0x0002
-        WM_LBUTTONUP = 0x0202
-        WM_PAINT = 0x000f
-
-    class SetWindowPos:
-        SWP_HIDEWINDOW = 0x0080
-        SWP_NOMOVE = 0x0002
-        SWP_NOSIZE = 0x0001
-        SWP_SHOWWINDOW = 0x0040
-
-
 class Window:
     def __init__(self, posx: int = 0, posy: int = 0, width: int = 800, height: int = 600, title: str = "Python",
                  color: tuple = (255, 255, 255)):
@@ -164,9 +108,9 @@ class Window:
         self.back_color = color
         self.hwnd = None
         self.dwExStyle = 0
-        self.dwStyle = Flags.dwStyles.WS_OVERLAPPEDWINDOW
+        self.dwStyle = flags.WindowStyles.WS_OVERLAPPEDWINDOW
 
-    def show(self, *, mode=Flags.showModes.SW_SHOW):
+    def show(self, *, mode=flags.ShowModes.SW_SHOW):
         wc = WNDCLASSW()
         wc.style = CS_HREDRAW | CS_VREDRAW
         wc.lpfnWndProc = WNDPROC(self.__WndProc)
@@ -225,27 +169,27 @@ class Window:
         self.dwStyle = flag
 
     def maximize(self):
-        self.dwStyle += Flags.dwStyles.WS_MAXIMIZE
+        self.dwStyle += flags.WindowStyles.WS_MAXIMIZE
 
     def minimize(self):
-        self.dwStyle += Flags.dwStyles.WS_MINIMIZE
+        self.dwStyle += flags.WindowStyles.WS_MINIMIZE
 
     @staticmethod
     def __WndProc(hwnd, message, wParam, lParam):
         ps = PAINTSTRUCT()
         rect = w.RECT()
 
-        if message == Flags.windowMessages.WM_PAINT:
+        if message == flags.WindowMessages.WM_PAINT:
             hdc = user32.BeginPaint(hwnd, byref(ps))
             user32.GetClientRect(hwnd, byref(rect))
             user32.DrawTextW(hdc, "Hello from scheme", -1, byref(rect), 0x00000020 | 0x00000001 | 0x00000004)
 
             Window.drawLine(hdc, 0, 0, 100, 200)
             user32.EndPaint(hwnd, byref(ps))
-        if message == Flags.windowMessages.WM_DESTROY:
+        if message == flags.WindowMessages.WM_DESTROY:
             user32.PostQuitMessage(0)
             return 0
-        if message == Flags.windowMessages.WM_LBUTTONUP:
+        if message == flags.WindowMessages.WM_LBUTTONUP:
             print("clicked")
             # kernel32.MessageBox()
             # user32.SetWindowPos(hwnd, 0, 100, 100, 100, 100, 0)
@@ -278,8 +222,8 @@ class Window:
 
 
 if __name__ == '__main__':
-    flex = Flags.dwExStyles
-    fl = Flags.dwStyles
+    flex = flags.WindowExStyles
+    fl = flags.WindowStyles
 
     window = Window()
     window.setTitle("sadasd")
