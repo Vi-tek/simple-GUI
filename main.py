@@ -31,6 +31,15 @@ class WNDCLASSW(Structure):
                 ('lpszClassName', w.LPCWSTR)]
 
 
+class PAINTSTRUCT(Structure):
+    _fields_ = [('hdc', w.HDC),
+                ('fErase', w.BOOL),
+                ('rcPaint', w.RECT),
+                ('fRestore', w.BOOL),
+                ('fIncUpdate', w.BOOL),
+                ('rgbReserved', w.BYTE * 32)]
+
+
 def MAKEINTRESOURCEW(x):
     return w.LPCWSTR(x)
 
@@ -58,7 +67,7 @@ user32.TranslateMessage.argtypes = POINTER(w.MSG),
 user32.TranslateMessage.restype = w.BOOL
 user32.DispatchMessageW.argtypes = POINTER(w.MSG),
 user32.DispatchMessageW.restype = LRESULT
-# user32.BeginPaint.argtypes = w.HWND, POINTER(PAINTSTRUCT)
+user32.BeginPaint.argtypes = w.HWND, POINTER(PAINTSTRUCT)
 user32.BeginPaint.restype = w.HDC
 user32.BeginPaint.errcheck = errcheck
 user32.GetClientRect.argtypes = w.HWND, POINTER(w.RECT)
@@ -66,17 +75,17 @@ user32.GetClientRect.restype = w.BOOL
 user32.GetClientRect.errcheck = errcheck
 user32.DrawTextW.argtypes = w.HDC, w.LPCWSTR, c_int, POINTER(w.RECT), w.UINT
 user32.DrawTextW.restype = c_int
-# user32.EndPaint.argtypes = w.HWND, POINTER(PAINTSTRUCT)
+user32.EndPaint.argtypes = w.HWND, POINTER(PAINTSTRUCT)
 user32.EndPaint.restype = w.BOOL
 user32.PostQuitMessage.argtypes = c_int,
 user32.PostQuitMessage.restype = None
 user32.DefWindowProcW.argtypes = w.HWND, w.UINT, w.WPARAM, w.LPARAM
 user32.DefWindowProcW.restype = LRESULT
-
-# win32api = kernel32
-# win32gui = user32
-# win32con ?
-
+gdi32.SelectObject.argtypes = w.HDC, w.HGDIOBJ
+gdi32.LineTo.argtypes = w.HDC, c_int, c_int
+gdi32.MoveToEx.argtypes = w.HDC, c_int, c_int, w.LPPOINT
+gdi32.Ellipse.argtypes = w.HDC, c_int, c_int, c_int, c_int
+gdi32.SetPixel.argtypes = w.HDC, c_int, c_int, w.COLORREF
 
 CW_USEDEFAULT = -2147483648
 CS_HREDRAW = 2
@@ -134,6 +143,14 @@ class Flags:
 
     class windowMessages:
         WM_DESTROY = 0x0002
+        WM_LBUTTONUP = 0x0202
+        WM_PAINT = 0x000f
+
+    class SetWindowPos:
+        SWP_HIDEWINDOW = 0x0080
+        SWP_NOMOVE = 0x0002
+        SWP_NOSIZE = 0x0001
+        SWP_SHOWWINDOW = 0x0040
 
 
 class Window:
@@ -158,6 +175,7 @@ class Window:
         wc.hIcon = user32.LoadIconW(None, IDI_APPLICATION)
         wc.hCursor = user32.LoadCursorW(None, IDC_ARROW)
         wc.hbrBackground = gdi32.CreateSolidBrush(self.__RGBToColor(self.back_color))
+        # wc.hbrBackground = None
         wc.lpszMenuName = None
         wc.lpszClassName = 'MainWin'
 
@@ -214,19 +232,49 @@ class Window:
 
     @staticmethod
     def __WndProc(hwnd, message, wParam, lParam):
+        ps = PAINTSTRUCT()
+        rect = w.RECT()
+
+        if message == Flags.windowMessages.WM_PAINT:
+            hdc = user32.BeginPaint(hwnd, byref(ps))
+            user32.GetClientRect(hwnd, byref(rect))
+            user32.DrawTextW(hdc, "Hello from scheme", -1, byref(rect), 0x00000020 | 0x00000001 | 0x00000004)
+
+            Window.drawLine(hdc, 0, 0, 100, 200)
+            user32.EndPaint(hwnd, byref(ps))
         if message == Flags.windowMessages.WM_DESTROY:
             user32.PostQuitMessage(0)
             return 0
-
+        if message == Flags.windowMessages.WM_LBUTTONUP:
+            print("clicked")
+            # kernel32.MessageBox()
+            # user32.SetWindowPos(hwnd, 0, 100, 100, 100, 100, 0)
+            return 0
         return user32.DefWindowProcW(hwnd, message, wParam, lParam)
 
     @staticmethod
     def __RGBToColor(crColor: tuple):
         if len(crColor) == 3:
-            if 0 < crColor[0] < 256 and 0 < crColor[1] < 256 and 0 < crColor[2] < 256:
+            if 0 <= crColor[0] < 256 and 0 <= crColor[1] < 256 and 0 <= crColor[2] < 256:
                 return crColor[2] << 16 | crColor[1] << 8 | crColor[0]
 
         return None
+
+    @staticmethod
+    def createBrush(color):
+        return gdi32.CreateSolidBrush(Window.__RGBToColor(color))
+
+    @staticmethod
+    def createPen(solid, width, color):
+        return gdi32.CreatePen(solid, width, Window.__RGBToColor(color))
+
+    @staticmethod
+    def drawLine(hdc, start_x, start_y, end_x, end_y):
+        pen = Window.createPen(0, 5, (0, 255, 255))
+        gdi32.SelectObject(hdc, pen)
+        gdi32.LineTo(hdc, end_x, end_y)
+        gdi32.MoveToEx(hdc, start_x, start_y, None)
+        gdi32.DeleteObject(pen)
 
 
 if __name__ == '__main__':
@@ -237,8 +285,9 @@ if __name__ == '__main__':
     window.setTitle("sadasd")
     window.resize(800, 600)
     window.moveTo(0, 0)
-    window.backColor(202, 10, 20)
+    window.backColor(200, 10, 0)
+
     window.setdwExStyleFlags(flex.WS_EX_TOPMOST)
-    window.setdwStyleFlags(fl.WS_DISABLED)
+    # window.setdwStyleFlags(fl.WS_OVERLAPPEDWINDOW)
     # window.maximize()
     window.show()
