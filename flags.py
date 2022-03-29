@@ -50,6 +50,7 @@ class WindowMessages:
     WM_DESTROY = 0x0002
     WM_LBUTTONUP = 0x0202
     WM_PAINT = 0x000f
+    WM_CREATE = 0x0001
 
 
 class SetWindowPos:
@@ -57,3 +58,4 @@ class SetWindowPos:
     SWP_NOMOVE = 0x0002
     SWP_NOSIZE = 0x0001
     SWP_SHOWWINDOW = 0x0040
+
